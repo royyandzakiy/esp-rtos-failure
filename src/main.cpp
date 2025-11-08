@@ -9,7 +9,7 @@
 class RTOSErrorSimulator {
 private:
     TimerHandle_t xErrorTimer;
-    SemaphoreHandle_t xMutex;
+    SemaphoreHandle_t xMutex, xMutexA, xMutexB;
     bool raceConditionEnabled;
     int *badPointer;
     int crashCounter;
@@ -239,18 +239,19 @@ public:
         RTOSErrorSimulator* sim = (RTOSErrorSimulator*)pvParameters;
         Serial.println("Deadlock1: Attempting to take Mutex A then B...");
         
-        if(xSemaphoreTake(sim->xMutex, portMAX_DELAY)) {
+        if(xSemaphoreTake(sim->xMutexA, portMAX_DELAY)) {
             Serial.println("Deadlock1: Got Mutex A, waiting then taking Mutex B...");
             vTaskDelay(pdMS_TO_TICKS(100)); // Give task2 time to get Mutex B
             
             Serial.println("Deadlock1: Trying to take Mutex B (WILL DEADLOCK)...");
-            if(xSemaphoreTake(sim->xMutex, pdMS_TO_TICKS(5000))) {
+            if(xSemaphoreTake(sim->xMutexB, pdMS_TO_TICKS(5000))) {
                 Serial.println("Deadlock1: Got both mutexes (unexpected!)");
-                xSemaphoreGive(sim->xMutex);
-                xSemaphoreGive(sim->xMutex);
+                // Critical section work here
+                xSemaphoreGive(sim->xMutexB);
+                xSemaphoreGive(sim->xMutexA);
             } else {
                 Serial.println("Deadlock1: Failed to get Mutex B (deadlock avoided?)");
-                xSemaphoreGive(sim->xMutex);
+                xSemaphoreGive(sim->xMutexA);
             }
         }
         
@@ -261,18 +262,19 @@ public:
         RTOSErrorSimulator* sim = (RTOSErrorSimulator*)pvParameters;
         Serial.println("Deadlock2: Attempting to take Mutex B then A...");
         
-        if(xSemaphoreTake(sim->xMutex, portMAX_DELAY)) {
+        if(xSemaphoreTake(sim->xMutexB, portMAX_DELAY)) {
             Serial.println("Deadlock2: Got Mutex B, waiting then taking Mutex A...");
             vTaskDelay(pdMS_TO_TICKS(150)); // Give task1 time to get Mutex A
             
             Serial.println("Deadlock2: Trying to take Mutex A (WILL DEADLOCK)...");
-            if(xSemaphoreTake(sim->xMutex, pdMS_TO_TICKS(5000))) {
+            if(xSemaphoreTake(sim->xMutexA, pdMS_TO_TICKS(5000))) {
                 Serial.println("Deadlock2: Got both mutexes (unexpected!)");
-                xSemaphoreGive(sim->xMutex);
-                xSemaphoreGive(sim->xMutex);
+                // Critical section work here
+                xSemaphoreGive(sim->xMutexA);
+                xSemaphoreGive(sim->xMutexB);
             } else {
                 Serial.println("Deadlock2: Failed to get Mutex A (deadlock avoided?)");
-                xSemaphoreGive(sim->xMutex);
+                xSemaphoreGive(sim->xMutexB);
             }
         }
         

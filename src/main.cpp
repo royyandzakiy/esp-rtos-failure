@@ -31,7 +31,7 @@ public:
         xTimerStart(xErrorTimer, 0);
         
         Serial.println("RTOS Error Simulator Initialized");
-        Serial.println("Commands: r=reset, s=stack, m=memory, c=crash, d=deadlock, f=free, r=race");
+        Serial.println("Commands: c=Immediate crash; w=Watchdog timeout; d=Deadlock; r=Race condition; s=stack; m=memory; s=Stack overflow; m=Memory corruption; p=Priority inversion;");
     }
 
     static void errorTimerCallback(TimerHandle_t xTimer) {
@@ -181,7 +181,7 @@ public:
         for(int i = 0; i < 3; i++) {
             xTaskCreatePinnedToCore(
                 raceConditionTask,
-                "RaceTask",
+                String("RaceTask_" + String(i)).c_str(),
                 2048,
                 this,
                 2, // Same priority = more race conditions
@@ -193,8 +193,8 @@ public:
 
     static void raceConditionTask(void *pvParameters) {
         RTOSErrorSimulator* sim = (RTOSErrorSimulator*)pvParameters;
-        static int sharedCounter = 0; // UNSAFE shared variable
-        static int correctCounter = 0; // Protected version for comparison
+        static int unsafeCounter = 0; // UNSAFE shared variable
+        static int safeCounter = 0; // Protected version for comparison
         
         char taskName[16];
         strcpy(taskName, pcTaskGetName(NULL));
@@ -202,28 +202,30 @@ public:
         for(int i = 0; i < 20; i++) {
             if(sim->raceConditionEnabled) {
                 // UNSAFE: Direct access to shared variable
-                int temp = sharedCounter;
+                int temp = unsafeCounter; // ANALOGY: OPEN TOILET DOOR
                 vTaskDelay(pdMS_TO_TICKS(1)); // Increase race window
-                sharedCounter = temp + 1;
+                unsafeCounter = temp + 1; // ANALOGY: POOP!!!
                 
                 // SAFE: Protected access for comparison
                 if(xSemaphoreTake(sim->xMutex, portMAX_DELAY)) {
-                    correctCounter++;
+                    int temp2 = safeCounter; // ANALOGY: OPEN TOILET DOOR 
+                    vTaskDelay(pdMS_TO_TICKS(1));
+                    safeCounter = temp2 + 1; // ANALOGY: POOP!!!
                     xSemaphoreGive(sim->xMutex);
                 }
                 
                 if(i % 5 == 0) {
-                    Serial.printf("%s: Unsafe=%d, Safe=%d, Diff=%d\n", 
-                                 taskName, sharedCounter, correctCounter, 
-                                 correctCounter - sharedCounter);
+                    Serial.printf("%s: Unsafe Counter=%d, Safe Counter=%d, Differences=%d\n", 
+                                 taskName, unsafeCounter, safeCounter, 
+                                 safeCounter - unsafeCounter);
                 }
             }
             vTaskDelay(pdMS_TO_TICKS(10));
         }
         
-        Serial.printf("%s FINAL: Unsafe=%d, Safe=%d, Lost=%d updates\n", 
-                     taskName, sharedCounter, correctCounter, 
-                     correctCounter - sharedCounter);
+        Serial.printf("%s FINAL: Unsafe Counter=%d, Safe Counter=%d, Lost Counts=%d updates\n", 
+                     taskName, unsafeCounter, safeCounter, 
+                     safeCounter - unsafeCounter);
         
         vTaskDelete(NULL);
     }
@@ -394,25 +396,25 @@ public:
 
     void handleSerialCommand(char cmd) {
         switch(cmd) {
+            case 'w': simulateWatchdogTimeout(); break;
+            case 'd': simulateDeadlock(); break;
+            case 'r': simulateRaceCondition(); break;
             case 's': simulateStackOverflow(); break;
             case 'm': simulateMemoryCorruption(); break;
-            case 'r': simulateRaceCondition(); break;
-            case 'd': simulateDeadlock(); break;
             case 'p': simulatePriorityInversion(); break;
-            case 'w': simulateWatchdogTimeout(); break;
             case 'c': 
                 Serial.println("Manual crash triggered!");
                 *((volatile int*)0) = 42; // Immediate segfault
                 break;
             case 'h':
                 Serial.println("Available commands:");
+                Serial.println("c - Immediate crash");
+                Serial.println("w - Watchdog timeout");
+                Serial.println("d - Deadlock");
+                Serial.println("r - Race condition");
                 Serial.println("s - Stack overflow");
                 Serial.println("m - Memory corruption");
-                Serial.println("r - Race condition");
-                Serial.println("d - Deadlock");
                 Serial.println("p - Priority inversion");
-                Serial.println("w - Watchdog timeout");
-                Serial.println("c - Immediate crash");
                 break;
         }
     }

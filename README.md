@@ -6,12 +6,12 @@ This project implements a comprehensive runtime error simulation framework for F
 
 The simulator systematically demonstrates critical FreeRTOS failure modes through controlled experiments:
 
-1. **Stack Overflow** - Task stack exhaustion through recursion and insufficient allocation
-2. **Memory Corruption** - Use-after-free, buffer overflow, and invalid pointer access
+1. **Watchdog Timeouts** - Infinite loops and unresponsive tasks
+2. **Deadlocks** - Circular dependency in resource acquisition
 3. **Race Conditions** - Unsynchronized access to shared resources
-4. **Deadlocks** - Circular dependency in resource acquisition
-5. **Priority Inversion** - High-priority task blocking on lower-priority tasks
-6. **Watchdog Timeouts** - Infinite loops and unresponsive tasks
+4. **Stack Overflow** - Task stack exhaustion through recursion and insufficient allocation
+5. **Memory Corruption** - Use-after-free, buffer overflow, and invalid pointer access
+6. **Priority Inversion** - High-priority task blocking on lower-priority tasks
 
 ## Operational Context
 
@@ -56,15 +56,15 @@ This framework serves as a diagnostic and educational tool for understanding Fre
 5. Execute simulation commands via serial interface
 
 ### Command Reference
-
+- `c` - Immediate system crash
+- `w` - Watchdog timeout trigger
+- `d` - Deadlock simulation
+- `r` - Race condition demonstration
 - `s` - Stack overflow simulation
 - `m` - Memory corruption scenarios
-- `r` - Race condition demonstration
-- `d` - Deadlock simulation
 - `p` - Priority inversion test
-- `w` - Watchdog timeout trigger
-- `c` - Immediate system crash
-- `h` - Command reference display
+
+- `h` - Help: Command reference display
 
 ## Diagnostic Features
 
